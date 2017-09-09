@@ -1,8 +1,12 @@
 # C Raven
 
+**Currently not complete**
+
 A minimalist GNU C99 client for [Sentry](https://sentry.io/) on top of libcurl.
 
 ## Usage
+
+Compile the following example with the flags `-std=c99 -D_GNU_SOURCE -lcurl`
 
 ```C
 #include "craven.h"

@@ -27,7 +27,8 @@ CRaven *craven_connect(const char *dsn_string)
     CRavenDsn dsn;
     CRavenDsnError err = craven_dsn_parse(dsn_string, &dsn);
     if (err != CRAVEN_OK){
-        fprintf(stderr, "Cannot parse DSN: %s\n", describe_dsn_error(err));
+        fprintf(stderr, "CRaven cannot parse DSN: %s\n(in %s)\n",
+                        describe_dsn_error(err), dsn_string);
         return NULL;
     }
 
@@ -58,6 +59,54 @@ CRaven *craven_connect(const char *dsn_string)
     return res;
 }
 
+static bool escape_dblquotes(char **str)
+{
+    char *in = *str;
+
+    // 1. Find string size and actual occurences of '"'
+    bool escaped = 0;
+    size_t str_size = 0, quotes = 0;
+    for (; *in != '\0'; in++, str_size++){
+        if (escaped){
+            escaped = false;
+        } else if (*in == '\\'){
+            escaped = true;
+        } else if (*in == '"'){
+            quotes++;
+        }
+    }
+
+    if (quotes == 0){
+        return true;
+    }
+
+    char *out = calloc(1, 1 + str_size + quotes);
+    if (out == NULL){
+        return false;
+    }
+
+    in = *str;
+    escaped = false;
+    for (size_t i=0,j=0; i<str_size+quotes; i++,j++){
+        if (escaped){
+            escaped = false;
+        } else if (in[j] == '\\'){
+            escaped = true;
+        }
+        if (! escaped && in[j] == '"'){
+            out[i] = '\\';
+            out[i+1] = '"';
+            i++;
+        } else {
+            out[i] = in[j];
+        }
+    }
+
+    free(*str);
+    *str = out;
+    return true;
+}
+
 void craven_event(CRaven *self,
                   const char *file, int line, const char *function,
                   const char *mesg, ...)
@@ -74,7 +123,16 @@ void craven_event(CRaven *self,
 
     if (self == NULL || self->dsn.empty){
         fprintf(stderr, "WARNING: INVALID CRAVEN CLIENT\n");
-        fprintf(stderr, "%s\n", message);
+        fprintf(stderr, "%s (in function `%s` [%s:%d])\n",
+                        message, function, file, line);
+        free(message);
+        return;
+    }
+
+    if (! escape_dblquotes(&message)){
+        fprintf(stderr, "WARNING: CANNOT ESCAPE DOUBLE QUOTES\n");
+        fprintf(stderr, "%s (in function `%s` [%s:%d])\n",
+                        message, function, file, line);
         free(message);
         return;
     }
