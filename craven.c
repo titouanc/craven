@@ -72,9 +72,14 @@ void craven_event(CRaven *self,
     }
     va_end(args);
 
-    if (self == NULL){
-        fprintf(stderr, "WARNING: INVALID CLIENT\n");
+    if (self == NULL || self->dsn.empty){
+        fprintf(stderr, "WARNING: INVALID CRAVEN CLIENT\n");
+        fprintf(stderr, "%s\n", message);
+        free(message);
+        return;
     }
+
+    // Build the Sentry headers
     char sentry_auth[1024];
     snprintf(sentry_auth, sizeof(sentry_auth),
              "X-Sentry-Auth: Sentry sentry_version=7,"
@@ -90,6 +95,7 @@ void craven_event(CRaven *self,
     headers = curl_slist_append(headers, sentry_auth);
     curl_easy_setopt(self->curl, CURLOPT_HTTPHEADER, headers);
 
+    // Buld the Sentry report
     char *payload = NULL;
     asprintf(&payload,
              "{\"culprit\":\"%s\""
@@ -103,6 +109,7 @@ void craven_event(CRaven *self,
     curl_easy_setopt(self->curl, CURLOPT_POSTFIELDS, payload);
     free(message);
 
+    // Send it !
     CURLcode res = curl_easy_perform(self->curl);
     if (res != CURLE_OK){
         fprintf(stderr, "CURL error when posting to sentry: %s\n",
@@ -115,6 +122,9 @@ void craven_event(CRaven *self,
 
 void craven_close(CRaven *self)
 {
+    if (self == NULL){
+        return;
+    }
     curl_easy_cleanup(self->curl);
     free(self);
 }
