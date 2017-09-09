@@ -11,11 +11,9 @@ Compile the following example with the flags `-std=c99 -D_GNU_SOURCE -lcurl`
 ```C
 #include "craven.h"
 
-const char *dsn = "<your Sentry DSN>";
-
 int main(int argc, const char **argv)
 {
-    CRaven *client = craven_connect(dsn);
+    CRaven *client = craven_connect("<your Sentry DSN>");
     CRAVEN(client, "This is an exception");
     craven_close(client);
     return 0;
